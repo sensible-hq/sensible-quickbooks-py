@@ -3,6 +3,10 @@ Extracts invoice data from a local PDF using Sensible and creates a bill in Quic
 
 Environment: macOS, Windows, Linux desktop, or WSL with a web browser accessible.
 See qbo_auth.py for production considerations.
+
+Note for LLM agents: this script is interactive — it opens a browser for OAuth. Do NOT
+run it via a Bash tool. In Claude Code, use the ! prefix instead (e.g. ! python invoice_to_quickbooks.py)
+so the auth URL appears in the conversation where the user can access it.
 """
 
 import os

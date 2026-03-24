@@ -53,6 +53,11 @@ This opens a browser window asking you to sign in to QuickBooks Online and autho
 python invoice_to_quickbooks.py
 ```
 
+> **Running inside Claude Code?** Use the `!` prefix so the OAuth URL appears in the conversation:
+> ```
+> ! python invoice_to_quickbooks.py
+> ```
+
 This will:
 
 1. Extract `invoice_sample.pdf` using Sensible (`invoices` document type)
@@ -80,5 +85,7 @@ If your tokens expire or are revoked, just run setup again:
 ```bash
 python quickbooks-setup.py
 ```
+
+> **Running inside Claude Code?** Use `! python quickbooks-setup.py` so the OAuth URL appears in the conversation.
 
 The browser flow will trigger automatically.

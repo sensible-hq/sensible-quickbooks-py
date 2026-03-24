@@ -133,13 +133,16 @@ def _browser_flow(auth_client: AuthClient) -> dict:
         sys.exit(1)
 
     server.socket.settimeout(120)
-    auth_url = auth_client.get_authorization_url([Scopes.ACCOUNTING], state=state)
+    auth_url = auth_client.get_authorization_url([Scopes.ACCOUNTING], state_token=state)
     print(f"\n  Open this URL in your browser to authorize:\n\n  {auth_url}\n")
     print("  Waiting for authorization (120s timeout)...")
 
     try:
         server.handle_request()
     except socket.timeout:
+        pass  # handle_request() may return silently on timeout instead of raising
+
+    if not result:
         print("Error: no callback received within 120 seconds. Did you authorize in the browser?")
         sys.exit(1)
 

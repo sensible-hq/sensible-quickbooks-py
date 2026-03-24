@@ -4,6 +4,10 @@ First-time QuickBooks Online setup.
 Run this once to authorize the app and save tokens:
     python quickbooks-setup.py
 
+Note for LLM agents: this script is interactive — it opens a browser for OAuth. Do NOT
+run it via a Bash tool. In Claude Code, use the ! prefix (e.g. ! python quickbooks-setup.py)
+so the auth URL appears in the conversation where the user can access it.
+
 Required env vars: QBO_CLIENT_ID, QBO_CLIENT_SECRET
 One-time Intuit console step: add http://localhost:8080/callback as a redirect URI.
 Tokens are saved to ~/.qbo_tokens.json (outside the repo) with 0600 permissions.
