@@ -1,3 +1,10 @@
+"""
+Extracts invoice data from a local PDF using Sensible and creates a bill in QuickBooks Online.
+
+Environment: macOS, Windows, Linux desktop, or WSL with a web browser accessible.
+See qbo_auth.py for production considerations.
+"""
+
 import os
 from pathlib import Path
 
