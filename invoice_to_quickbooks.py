@@ -10,6 +10,7 @@ so the auth URL appears in the conversation where the user can access it.
 """
 
 import os
+from datetime import datetime
 from pathlib import Path
 
 from sensibleapi import SensibleSDK
@@ -177,12 +178,17 @@ else:
         print(f"  • Line {i}: {description or '(no description)'} — ${amount:,.2f}")
 
 saved = bill.save(qb=qb_client)
+bill_url = f"https://app.sandbox.qbo.intuit.com/app/bill?txnId={saved.Id}"  # PRODUCTION: Change to https://app.qbo.intuit.com/app/bill?txnId={saved.Id}
+
 print(f"\n{'='*60}")
 print(f"  ✓ Bill created successfully!")
 print(f"    ID:     {saved.Id}")
 print(f"    Vendor: {vendor_ref.name}")
 print(f"    Date:   {saved.TxnDate}")
 print(f"    Lines:  {len(bill.Line)}")
-# PRODUCTION: Change URL to https://app.qbo.intuit.com/app/bill?txnId={saved.Id}
-print(f"    View:   https://app.sandbox.qbo.intuit.com/app/bill?txnId={saved.Id}")
+print(f"    View:   {bill_url}")
 print(f"{'='*60}")
+
+log_path = Path(__file__).resolve().parent / "logs.txt"
+with open(log_path, "a") as f:
+    f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  bill {saved.Id}  {vendor_ref.name}  {saved.TxnDate}  {bill_url}\n")
