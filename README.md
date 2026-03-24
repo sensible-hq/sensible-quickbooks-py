@@ -1,5 +1,7 @@
 # Sensible → QuickBooks Online Integration
 
+> **This is a proof-of-concept tutorial.** It is not intended for production use. The OAuth flow, token storage, and credential handling are intentionally simplified for local development. See the inline `PRODUCTION:` comments in `qbo_auth.py` for a summary of what would need to change before deploying this anywhere real.
+
 Extracts data from a vendor invoice PDF using Sensible, then creates a bill in QuickBooks Online.
 
 ---
@@ -41,7 +43,7 @@ cd scripts/quickbooks_sensible
 python quickbooks-setup.py
 ```
 
-This opens a browser window asking you to sign in to QuickBooks Online and authorize the app. Once you click **Connect**, the tokens are saved to `.qbo_tokens.json` in this directory and you're done. You won't need to do this again unless the refresh token expires (after 100 days of inactivity).
+This opens a browser window asking you to sign in to QuickBooks Online and authorize the app. Once you click **Connect**, the tokens are saved to `~/.qbo_tokens.json` and you're done. You won't need to do this again unless the refresh token expires (after 100 days of inactivity).
 
 ---
 
@@ -64,10 +66,10 @@ This will:
 
 ## Token storage
 
-Tokens are saved to `scripts/quickbooks_sensible/.qbo_tokens.json` (git-ignored). To store them elsewhere — recommended for any real use — set:
+Tokens are saved to `~/.qbo_tokens.json` by default (outside the repo, with `0600` permissions). To override the path, set:
 
 ```bash
-export QBO_TOKEN_FILE=~/.qbo_tokens.json
+export QBO_TOKEN_FILE=/path/to/tokens.json
 ```
 
 ---

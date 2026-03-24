@@ -184,5 +184,6 @@ print(f"    ID:     {saved.Id}")
 print(f"    Vendor: {vendor_ref.name}")
 print(f"    Date:   {saved.TxnDate}")
 print(f"    Lines:  {len(bill.Line)}")
+# PRODUCTION: Change URL to https://app.qbo.intuit.com/app/bill?txnId={saved.Id}
 print(f"    View:   https://app.sandbox.qbo.intuit.com/app/bill?txnId={saved.Id}")
 print(f"{'='*60}")
