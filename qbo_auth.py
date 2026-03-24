@@ -43,7 +43,10 @@ import json
 import os
 import secrets
 import socket
+import subprocess
 import sys
+import time
+import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -129,12 +132,25 @@ def _browser_flow(auth_client: AuthClient) -> dict:
     try:
         server = HTTPServer(("localhost", 8080), _Handler)
     except OSError:
-        print("Error: port 8080 is in use. Stop the other process and try again.")
-        sys.exit(1)
+        # Likely a stale process from a previous run — try to free the port and retry once.
+        print("  Port 8080 in use. Attempting to free it...")
+        subprocess.run("lsof -ti:8080 | xargs kill -9", shell=True, capture_output=True)
+        time.sleep(1)
+        try:
+            server = HTTPServer(("localhost", 8080), _Handler)
+        except OSError:
+            print("Error: port 8080 is still in use. Stop the other process and try again.")
+            sys.exit(1)
 
     server.socket.settimeout(120)
     auth_url = auth_client.get_authorization_url([Scopes.ACCOUNTING], state_token=state)
-    print(f"\n  Open this URL in your browser to authorize:\n\n  {auth_url}\n")
+    print(f"\n  Opening browser to authorize...")
+    try:
+        opened = webbrowser.open(auth_url)
+    except Exception:
+        opened = False
+    if not opened:
+        print(f"  Could not open browser automatically. Open this URL manually:\n\n  {auth_url}\n")
     print("  Waiting for authorization (120s timeout)...")
 
     try:
