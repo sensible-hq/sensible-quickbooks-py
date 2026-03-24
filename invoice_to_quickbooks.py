@@ -67,6 +67,12 @@ def get_default_expense_account(qb_client):
 
 
 # ── Sensible extraction ────────────────────────────────────────────────────────
+# This script pulls from a local file, but Sensible supports other input methods:
+# - extract(url=...) or extract(file=...) for remote/in-memory documents
+# - Webhook-driven flow: if you configure automatic extractions (e.g. via Sensible's
+#   email processor), Sensible POSTs parsed_document to your endpoint — no extract()
+#   call needed. See: https://github.com/sensible-hq/sensible-api-py
+#   and https://docs.sensible.so/docs/getting-started-email
 
 invoice_path = Path(__file__).resolve().parent / "invoice_sample.pdf"
 
