@@ -27,7 +27,7 @@ The new flow reduces this to a one-time browser click on first run. All subseque
 |---|---|
 | `scripts/quickbooks_sensible/qbo_auth.py` | New — shared auth module |
 | `scripts/quickbooks_sensible/quickbooks-setup.py` | New — first-time setup runner |
-| `scripts/quickbooks_sensible/import_sensible_to_quickbooks.py` | Updated — replace auth block with `get_qb_client()` |
+| `scripts/quickbooks_sensible/invoice_to_quickbooks.py` | Updated — replace auth block with `get_qb_client()`; renamed from `import_sensible_to_quickbooks.py` |
 | `scripts/quickbooks_sensible/qbo_get_tokens.py` | Deleted — confirmed no other files reference it (grep verified) |
 | `scripts/quickbooks_sensible/.gitignore` | New — ignore `.qbo_tokens.json` |
 
@@ -48,9 +48,9 @@ Uses `environment="sandbox"` for both `AuthClient` and `QuickBooks` (educational
 
 **Token storage:**
 
-Default token file path: `Path(__file__).parent / ".qbo_tokens.json"` (i.e., `scripts/quickbooks_sensible/.qbo_tokens.json`).
+Default token file path: `Path.home() / ".qbo_tokens.json"` (i.e., `~/.qbo_tokens.json`).
 
-Override: if the environment variable `QBO_TOKEN_FILE` is set, use `Path(os.environ["QBO_TOKEN_FILE"])` instead. A comment in the code should note: *"For production use, set QBO_TOKEN_FILE=~/.qbo_tokens.json (or any path outside the project directory)."*
+Override: if the environment variable `QBO_TOKEN_FILE` is set, use `Path(os.environ["QBO_TOKEN_FILE"])` instead.
 
 Token file shape:
 ```json
@@ -122,19 +122,19 @@ Imports `get_qb_client` from `qbo_auth`. Calls it (triggers browser flow on firs
 
 ---
 
-## `import_sensible_to_quickbooks.py`
+## `invoice_to_quickbooks.py` (formerly `import_sensible_to_quickbooks.py`)
 
 The existing auth block (constructing `AuthClient` and `QuickBooks` manually) is replaced with:
 
 ```python
 from qbo_auth import get_qb_client
 
-print("\n[3/6] Authenticating with QuickBooks Online ...")
+print("\n[2/5] Authenticating with QuickBooks Online ...")
 qb_client = get_qb_client()
 print("  ✓ Connected.")
 ```
 
-`[3/6]` is correct — the script has 6 steps and auth is step 3. No other changes to the file.
+The download step was removed and the PDF renamed to `invoice_sample.pdf`, reducing the script from 6 steps to 5. Auth is now step 2.
 
 ---
 
@@ -151,7 +151,7 @@ Create with:
 
 1. Running `python quickbooks-setup.py` with `QBO_CLIENT_ID` and `QBO_CLIENT_SECRET` set opens a browser, completes the OAuth flow, and creates `scripts/quickbooks_sensible/.qbo_tokens.json` with permissions `600`.
 2. Running `python quickbooks-setup.py` a second time (token file already present) refreshes the access token and updates the file without opening a browser.
-3. Running `python import_sensible_to_quickbooks.py` completes the full Sensible → QBO flow without the user setting `QBO_REFRESH_TOKEN` or `QBO_REALM_ID`.
+3. Running `python invoice_to_quickbooks.py` completes the full Sensible → QBO flow without the user setting `QBO_REFRESH_TOKEN` or `QBO_REALM_ID`.
 4. Deleting `.qbo_tokens.json` and re-running either script triggers the browser flow again.
 5. Running with port 8080 occupied prints the port-in-use error and exits with code 1.
 6. Setting `QBO_TOKEN_FILE=/tmp/test_tokens.json` and running `python quickbooks-setup.py` creates the token file at `/tmp/test_tokens.json`, not at `scripts/quickbooks_sensible/.qbo_tokens.json`.

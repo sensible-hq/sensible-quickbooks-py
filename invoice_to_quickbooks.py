@@ -1,5 +1,4 @@
 import os
-import requests
 from pathlib import Path
 
 from sensibleapi import SensibleSDK
@@ -14,11 +13,6 @@ from quickbooks.objects.base import Ref
 from qbo_auth import get_qb_client
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-
-SAMPLE_PDF_URL = (
-    "https://raw.githubusercontent.com/sensible-hq/sensible-configuration-library"
-    "/main/templates/Utilities%20%26%20Invoices/Invoices/refdocs/llm_invoices_template.pdf"
-)
 
 DEFAULT_VENDOR = "Unmatched - Review Required"
 
@@ -72,23 +66,11 @@ def get_default_expense_account(qb_client):
     return make_ref(new_acct.Id, new_acct.Name)
 
 
-# ── Download sample invoice ────────────────────────────────────────────────────
-
-script_dir = Path(__file__).resolve().parent
-invoice_path = script_dir / "llm_invoices_template.pdf"
-
-print("\n[1/6] Downloading sample invoice ...")
-if not invoice_path.exists():
-    resp = requests.get(SAMPLE_PDF_URL)
-    resp.raise_for_status()
-    invoice_path.write_bytes(resp.content)
-    print(f"  ✓ Saved to {invoice_path}")
-else:
-    print(f"  ✓ Already exists at {invoice_path}, skipping download.")
-
 # ── Sensible extraction ────────────────────────────────────────────────────────
 
-print("\n[2/6] Extracting invoice with Sensible ...")
+invoice_path = Path(__file__).resolve().parent / "invoice_sample.pdf"
+
+print("\n[1/5] Extracting invoice with Sensible ...")
 sensible = SensibleSDK(os.environ["SENSIBLE_API_KEY"])
 
 request = sensible.extract(
@@ -118,18 +100,18 @@ if not vendor_name:
 
 # ── QuickBooks Online auth ─────────────────────────────────────────────────────
 
-print("\n[3/6] Authenticating with QuickBooks Online ...")
+print("\n[2/5] Authenticating with QuickBooks Online ...")
 qb_client = get_qb_client()
 print("  ✓ Connected.")
 
 # ── Find or create a default expense account ──────────────────────────────────
 
-print("\n[4/6] Resolving expense account ...")
+print("\n[3/5] Resolving expense account ...")
 expense_account_ref = get_default_expense_account(qb_client)
 
 # ── Find or create vendor ──────────────────────────────────────────────────────
 
-print("\n[5/6] Resolving vendor ...")
+print("\n[4/5] Resolving vendor ...")
 vendors = Vendor.filter(DisplayName=vendor_name, qb=qb_client)
 if vendors:
     vendor_ref = make_ref(vendors[0].Id, vendors[0].DisplayName)
@@ -143,7 +125,7 @@ else:
 
 # ── Build bill ─────────────────────────────────────────────────────────────────
 
-print("\n[6/6] Creating bill in QuickBooks ...")
+print("\n[5/5] Creating bill in QuickBooks ...")
 
 bill = Bill()
 bill.TxnDate = str(invoice_date) if invoice_date else None

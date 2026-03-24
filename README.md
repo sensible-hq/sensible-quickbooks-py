@@ -11,7 +11,7 @@ Extracts data from a vendor invoice PDF using Sensible, then creates a bill in Q
 ### 1. Install dependencies
 
 ```bash
-pip install sensible-sdk python-quickbooks intuitlib requests
+pip install sensible-sdk python-quickbooks intuitlib
 ```
 
 ### 2. Set environment variables
@@ -50,17 +50,16 @@ This opens a browser window asking you to sign in to QuickBooks Online and autho
 ## Run the integration
 
 ```bash
-python import_sensible_to_quickbooks.py
+python invoice_to_quickbooks.py
 ```
 
 This will:
 
-1. Download the sample invoice PDF (skipped if already present)
-2. Extract invoice data using Sensible (`invoices` document type)
-3. Authenticate with QuickBooks using saved tokens (auto-refreshes silently)
-4. Find or create an expense account
-5. Find or create a vendor
-6. Create a bill in QuickBooks with the extracted line items
+1. Extract `invoice_sample.pdf` using Sensible (`invoices` document type)
+2. Authenticate with QuickBooks using saved tokens (auto-refreshes silently)
+3. Find or create an expense account
+4. Find or create a vendor
+5. Create a bill in QuickBooks with the extracted line items
 
 ---
 
