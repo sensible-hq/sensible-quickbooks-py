@@ -22,6 +22,7 @@ from quickbooks.objects.detailline import (
 )
 from quickbooks.objects.vendor import Vendor
 from quickbooks.objects.base import Ref
+from quickbooks.exceptions import QuickbooksException
 from qbo_auth import get_qb_client
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -42,10 +43,22 @@ FALLBACK_ACCOUNT_NAME = "Invoice Imports - Needs Review"
 
 
 def get_field(parsed, key):
+    """Extract a field value from a Sensible parsed_document result.
+
+    Sensible fields are dicts like {"value": ..., "type": ...}. Returns None if
+    the field dict itself is missing or falsy (e.g. None, False, or an empty dict);
+    inner values of 0 or False are returned correctly. Does not raise.
+    """
     return (parsed.get(key) or {}).get("value")
 
 
 def make_ref(id, name):
+    """Build a QuickBooks Ref object linking to another record by ID and display name.
+
+    Ref is python-quickbooks's generic foreign key. value holds the record ID,
+    name holds the display name shown in QBO. Used when pointing a Bill at a
+    Vendor or an ExpenseLine at an Account.
+    """
     ref = Ref()
     ref.value = id
     ref.name = name
@@ -53,10 +66,26 @@ def make_ref(id, name):
 
 
 def parse_amount(value):
-    return float(str(value).replace(",", "")) if value else 0.0
+    """Convert a currency value to a float, stripping commas. Returns 0.0 if value is None.
+
+    Sensible may return amounts as formatted strings like "1,234.56". Commas are
+    stripped before float conversion. None becomes 0.0; a numeric 0 is converted
+    correctly via the float() path. Raises ValueError if the string is not a valid
+    float after comma-stripping (e.g. a bare currency symbol or a label string like
+    "N/A" returned from a low-confidence extraction).
+    """
+    return float(str(value).replace(",", "")) if value is not None else 0.0
 
 
 def get_default_expense_account(qb_client):
+    """Find or create a catch-all expense account for unclassified invoice line items.
+
+    Checks existing QBO Expense and "Other Expense" accounts against PREFERRED_ACCOUNT_NAMES
+    in priority order (case-insensitive). Returns the first match as a Ref. If none
+    of the preferred accounts exist, attempts to create a new account named
+    FALLBACK_ACCOUNT_NAME (AccountSubType: OtherMiscellaneousServiceCost). Raises
+    QuickbooksException if the fallback account cannot be created.
+    """
     accounts = Account.filter(AccountType="Expense", qb=qb_client)
     accounts += Account.filter(AccountType="Other Expense", qb=qb_client)
 
@@ -72,7 +101,11 @@ def get_default_expense_account(qb_client):
     new_acct.Name = FALLBACK_ACCOUNT_NAME
     new_acct.AccountType = "Expense"
     new_acct.AccountSubType = "OtherMiscellaneousServiceCost"
-    new_acct.save(qb=qb_client)
+    try:
+        new_acct.save(qb=qb_client)
+    except QuickbooksException as e:
+        print(f"  Error: could not create fallback account {FALLBACK_ACCOUNT_NAME!r}: {e}")
+        raise
 
     print(f"  ✓ Created new account: {new_acct.Name!r} (ID {new_acct.Id})")
     return make_ref(new_acct.Id, new_acct.Name)

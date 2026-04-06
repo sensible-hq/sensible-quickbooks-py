@@ -64,13 +64,19 @@ _REDIRECT_URI = "http://localhost:8080/callback"
 
 
 def token_path() -> Path:
-    """Return the resolved token file path (public — useful for callers that need to display or check the path)."""
+    """Return the token file path (public — useful for callers that need to display or check the path)."""
     if "QBO_TOKEN_FILE" in os.environ:
         return Path(os.environ["QBO_TOKEN_FILE"])
     return Path.home() / ".qbo_tokens.json"
 
 
 def _load_tokens(path: Path) -> dict:
+    """Read saved OAuth tokens from disk.
+
+    Returns an empty dict if the file doesn't exist, can't be read, or contains
+    invalid JSON (e.g. from an interrupted write). An empty return triggers the
+    browser re-authorization flow in get_qb_client().
+    """
     if not path.exists():
         return {}
     try:
@@ -81,6 +87,14 @@ def _load_tokens(path: Path) -> dict:
 
 
 def _save_tokens(path: Path, tokens: dict) -> None:
+    """Write a tokens dict to a JSON file and set permissions to 0o600 after writing.
+
+    Persists the caller's token dict so subsequent runs can refresh silently without
+    re-authorizing. The chmod runs after the write, so there is a brief window where
+    the file exists with default umask permissions before it is tightened. The write
+    is not atomic — a crash mid-write can leave a partial file, which _load_tokens
+    handles gracefully.
+    """
     # PRODUCTION: Don't write tokens to disk. Store access_token, refresh_token,
     # and realm_id in an encrypted secrets store (e.g. AWS Secrets Manager) or an
     # encrypted database column. The 0o600 chmod is a bare-minimum local safeguard
@@ -102,6 +116,22 @@ def _save_tokens(path: Path, tokens: dict) -> None:
 # The one-time browser authorization only needs to happen once per QBO account.
 # After that, only the refresh loop in get_qb_client() is needed for ongoing access.
 def _browser_flow(auth_client: AuthClient) -> dict:
+    """Run the one-time OAuth authorization flow using a local callback server.
+
+    Prints an authorization URL and attempts to open it in the user's browser.
+    Spins up a temporary HTTP server on localhost:8080 to catch Intuit's redirect
+    after the user approves access. If port 8080 is already in use, attempts to
+    kill the occupying process and retry once. Exchanges the returned auth code
+    for an access token and refresh token, then returns them along with the QBO
+    realm ID.
+
+    The server waits up to 120 seconds for the callback, returning immediately
+    if one arrives; the result dict is checked after the call to detect a timeout.
+    A random state token is included in the authorization URL and verified on
+    return to prevent CSRF. Exits the process on any error — timeout, denied
+    access, bad callback params, or failed token exchange — since there is no
+    meaningful recovery path without a valid token set.
+    """
     result = {}
     state = secrets.token_urlsafe(16)
 
@@ -189,7 +219,8 @@ def get_qb_client() -> QuickBooks:
     """Return an authenticated QuickBooks client, handling all token management.
 
     On first run: opens a browser for OAuth authorization and saves tokens.
-    On subsequent runs: refreshes the access token silently from the saved file.
+    On subsequent runs: refreshes both the access token and refresh token silently
+    from the saved file and re-saves the rotated tokens.
     If the refresh token is expired or revoked: re-runs the browser flow.
     """
     path = token_path()
