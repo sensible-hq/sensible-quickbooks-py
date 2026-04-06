@@ -45,7 +45,7 @@ FALLBACK_ACCOUNT_NAME = "Invoice Imports - Needs Review"
 def get_field(parsed, key):
     """Extract a field value from a Sensible parsed_document result.
 
-    Sensible fields are dicts like {"value": ..., "type": ...}. Returns None if
+    Sensible fields are dicts with at least "value" and "type" keys. Returns None if
     the field dict itself is missing or falsy (e.g. None, False, or an empty dict);
     inner values of 0 or False are returned correctly. Does not raise.
     """
