@@ -64,19 +64,37 @@ _REDIRECT_URI = "http://localhost:8080/callback"
 
 
 def token_path() -> Path:
-    """Return the resolved token file path (public — useful for callers that need to display or check the path)."""
+    """Return the token file path (public — useful for callers that need to display or check the path)."""
     if "QBO_TOKEN_FILE" in os.environ:
         return Path(os.environ["QBO_TOKEN_FILE"])
     return Path.home() / ".qbo_tokens.json"
 
 
 def _load_tokens(path: Path) -> dict:
+    """Read saved OAuth tokens from disk.
+
+    Returns an empty dict if the file doesn't exist, can't be read, or contains
+    invalid JSON (e.g. from an interrupted write). An empty return triggers the
+    browser re-authorization flow in get_qb_client().
+    """
     if not path.exists():
         return {}
-    return json.loads(path.read_text())
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        print(f"  Warning: token file at {path} is unreadable or corrupt. Re-authorizing...")
+        return {}
 
 
 def _save_tokens(path: Path, tokens: dict) -> None:
+    """Write a tokens dict to a JSON file and set permissions to 0o600 after writing.
+
+    Persists the caller's token dict so subsequent runs can refresh silently without
+    re-authorizing. The chmod runs after the write, so there is a brief window where
+    the file exists with default umask permissions before it is tightened. The write
+    is not atomic — a crash mid-write can leave a partial file, which _load_tokens
+    handles gracefully.
+    """
     # PRODUCTION: Don't write tokens to disk. Store access_token, refresh_token,
     # and realm_id in an encrypted secrets store (e.g. AWS Secrets Manager) or an
     # encrypted database column. The 0o600 chmod is a bare-minimum local safeguard
@@ -98,6 +116,22 @@ def _save_tokens(path: Path, tokens: dict) -> None:
 # The one-time browser authorization only needs to happen once per QBO account.
 # After that, only the refresh loop in get_qb_client() is needed for ongoing access.
 def _browser_flow(auth_client: AuthClient) -> dict:
+    """Run the one-time OAuth authorization flow using a local callback server.
+
+    Prints an authorization URL and attempts to open it in the user's browser.
+    Spins up a temporary HTTP server on localhost:8080 to catch Intuit's redirect
+    after the user approves access. If port 8080 is already in use, attempts to
+    kill the occupying process and retry once. Exchanges the returned auth code
+    for an access token and refresh token, then returns them along with the QBO
+    realm ID.
+
+    The server waits up to 120 seconds for the callback, returning immediately
+    if one arrives; the result dict is checked after the call to detect a timeout.
+    A random state token is included in the authorization URL and verified on
+    return to prevent CSRF. Exits the process on any error — timeout, denied
+    access, bad callback params, or failed token exchange — since there is no
+    meaningful recovery path without a valid token set.
+    """
     result = {}
     state = secrets.token_urlsafe(16)
 
@@ -142,15 +176,14 @@ def _browser_flow(auth_client: AuthClient) -> dict:
             print("Error: port 8080 is still in use. Stop the other process and try again.")
             sys.exit(1)
 
-    server.socket.settimeout(120)
+    server.timeout = 120
     auth_url = auth_client.get_authorization_url([Scopes.ACCOUNTING], state_token=state)
-    print(f"\n  Opening browser to authorize...")
+    print(f"\n  Authorize QuickBooks by opening this URL:\n\n  {auth_url}\n")
     try:
-        opened = webbrowser.open(auth_url)
+        if webbrowser.open(auth_url):
+            print("  (Browser opened automatically — use the URL above if nothing appeared.)")
     except Exception:
-        opened = False
-    if not opened:
-        print(f"  Could not open browser automatically. Open this URL manually:\n\n  {auth_url}\n")
+        pass
     print("  Waiting for authorization (120s timeout)...")
 
     try:
@@ -159,14 +192,22 @@ def _browser_flow(auth_client: AuthClient) -> dict:
         pass  # handle_request() may return silently on timeout instead of raising
 
     if not result:
-        print("Error: no callback received within 120 seconds. Did you authorize in the browser?")
+        print("Error: no callback received within 120 seconds. Open the URL above in a browser, complete authorization, then re-run.")
         sys.exit(1)
 
     if result.get("error"):
         print(f"Error: authorization failed ({result['error']}). Re-run setup to try again.")
         sys.exit(1)
 
-    auth_client.get_bearer_token(result["code"], realm_id=result["realm_id"])
+    if not result.get("code") or not result.get("realm_id"):
+        print("Error: authorization callback was missing required parameters. Re-run setup to try again.")
+        sys.exit(1)
+
+    try:
+        auth_client.get_bearer_token(result["code"], realm_id=result["realm_id"])
+    except AuthClientError as e:
+        print(f"Error: token exchange failed — {e}. The authorization code may have expired. Re-run setup to try again.")
+        sys.exit(1)
     return {
         "access_token": auth_client.access_token,
         "refresh_token": auth_client.refresh_token,
@@ -178,7 +219,8 @@ def get_qb_client() -> QuickBooks:
     """Return an authenticated QuickBooks client, handling all token management.
 
     On first run: opens a browser for OAuth authorization and saves tokens.
-    On subsequent runs: refreshes the access token silently from the saved file.
+    On subsequent runs: refreshes both the access token and refresh token silently
+    from the saved file and re-saves the rotated tokens.
     If the refresh token is expired or revoked: re-runs the browser flow.
     """
     path = token_path()
@@ -204,7 +246,7 @@ def get_qb_client() -> QuickBooks:
             print("  Warning: saved tokens are invalid or expired. Re-authorizing...")
             tokens = {}
 
-    if not tokens:
+    if not tokens or not tokens.get("realm_id"):
         # PRODUCTION: This branch should never be hit at runtime. Initial authorization
         # must be completed out-of-band (via your /oauth/callback web route) before
         # deploying the service. If tokens are missing at startup, raise an exception
