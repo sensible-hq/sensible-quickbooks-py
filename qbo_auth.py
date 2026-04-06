@@ -73,7 +73,11 @@ def token_path() -> Path:
 def _load_tokens(path: Path) -> dict:
     if not path.exists():
         return {}
-    return json.loads(path.read_text())
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        print(f"  Warning: token file at {path} is unreadable or corrupt. Re-authorizing...")
+        return {}
 
 
 def _save_tokens(path: Path, tokens: dict) -> None:
@@ -142,15 +146,14 @@ def _browser_flow(auth_client: AuthClient) -> dict:
             print("Error: port 8080 is still in use. Stop the other process and try again.")
             sys.exit(1)
 
-    server.socket.settimeout(120)
+    server.timeout = 120
     auth_url = auth_client.get_authorization_url([Scopes.ACCOUNTING], state_token=state)
-    print(f"\n  Opening browser to authorize...")
+    print(f"\n  Authorize QuickBooks by opening this URL:\n\n  {auth_url}\n")
     try:
-        opened = webbrowser.open(auth_url)
+        if webbrowser.open(auth_url):
+            print("  (Browser opened automatically — use the URL above if nothing appeared.)")
     except Exception:
-        opened = False
-    if not opened:
-        print(f"  Could not open browser automatically. Open this URL manually:\n\n  {auth_url}\n")
+        pass
     print("  Waiting for authorization (120s timeout)...")
 
     try:
@@ -159,14 +162,22 @@ def _browser_flow(auth_client: AuthClient) -> dict:
         pass  # handle_request() may return silently on timeout instead of raising
 
     if not result:
-        print("Error: no callback received within 120 seconds. Did you authorize in the browser?")
+        print("Error: no callback received within 120 seconds. Open the URL above in a browser, complete authorization, then re-run.")
         sys.exit(1)
 
     if result.get("error"):
         print(f"Error: authorization failed ({result['error']}). Re-run setup to try again.")
         sys.exit(1)
 
-    auth_client.get_bearer_token(result["code"], realm_id=result["realm_id"])
+    if not result.get("code") or not result.get("realm_id"):
+        print("Error: authorization callback was missing required parameters. Re-run setup to try again.")
+        sys.exit(1)
+
+    try:
+        auth_client.get_bearer_token(result["code"], realm_id=result["realm_id"])
+    except AuthClientError as e:
+        print(f"Error: token exchange failed — {e}. The authorization code may have expired. Re-run setup to try again.")
+        sys.exit(1)
     return {
         "access_token": auth_client.access_token,
         "refresh_token": auth_client.refresh_token,
@@ -204,7 +215,7 @@ def get_qb_client() -> QuickBooks:
             print("  Warning: saved tokens are invalid or expired. Re-authorizing...")
             tokens = {}
 
-    if not tokens:
+    if not tokens or not tokens.get("realm_id"):
         # PRODUCTION: This branch should never be hit at runtime. Initial authorization
         # must be completed out-of-band (via your /oauth/callback web route) before
         # deploying the service. If tokens are missing at startup, raise an exception
