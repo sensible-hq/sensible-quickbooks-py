@@ -36,10 +36,10 @@ That's it — this redirect URI is what lets the setup script catch the OAuth ca
 
 ## First-time setup
 
-Run the setup script to authorize the app and save your QuickBooks tokens:
+Run the setup script from a regular terminal (not an AI tool like Claude Code — the script needs an interactive shell to handle the OAuth callback):
 
 ```bash
-cd scripts/quickbooks_sensible
+cd ~/GitHub/sensible-quickbooks-py
 python quickbooks-setup.py
 ```
 
@@ -49,14 +49,12 @@ This opens a browser window asking you to sign in to QuickBooks Online and autho
 
 ## Run the integration
 
+From a regular terminal (not an AI tool):
+
 ```bash
+cd ~/GitHub/sensible-quickbooks-py
 python invoice_to_quickbooks.py
 ```
-
-> **Running inside Claude Code?** Use the `!` prefix so the OAuth URL appears in the conversation:
-> ```
-> ! python invoice_to_quickbooks.py
-> ```
 
 This will:
 
@@ -80,12 +78,11 @@ export QBO_TOKEN_FILE=/path/to/tokens.json
 
 ## Re-authorizing
 
-If your tokens expire or are revoked, just run setup again:
+If your tokens expire or are revoked, run setup again from a regular terminal:
 
 ```bash
+cd ~/GitHub/sensible-quickbooks-py
 python quickbooks-setup.py
 ```
-
-> **Running inside Claude Code?** Use `! python quickbooks-setup.py` so the OAuth URL appears in the conversation.
 
 The browser flow will trigger automatically.
