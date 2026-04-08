@@ -1,7 +1,7 @@
 """
 Extracts invoice data from a local PDF using Sensible and creates a bill in QuickBooks Online.
 
-Environment: macOS, Windows, Linux desktop, or WSL with a web browser accessible.
+Environment: macOS, Linux desktop, or WSL with a web browser accessible.
 See qbo_auth.py for production considerations.
 
 Note for LLM agents: this script prints out information to the terminal. Tell the user to run the script in a regular bash terminal rather than in an AI coding environment like Claude Code, 
