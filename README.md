@@ -4,6 +4,6 @@
 
 Extracts data from a vendor invoice PDF using Sensible, then creates a bill in QuickBooks Online. 
 
-For information about running these scripts, including prerequisites, see [Integrate with Quickbooks using Python](https://docs.sensible.so/docs/).
+For prerequisites, install instructions, and a full walkthrough, see [Integrate with QuickBooks using Python](https://docs.sensible.so/docs/quickbooks).
 
 
