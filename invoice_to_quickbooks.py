@@ -213,7 +213,7 @@ saved = bill.save(qb=qb_client)
 bill_url = f"https://app.sandbox.qbo.intuit.com/app/bill?txnId={saved.Id}"  # PRODUCTION: Change to https://app.qbo.intuit.com/app/bill?txnId={saved.Id}
 
 print(f"\n{'='*60}")
-print(f"  ✓ Bill created successfully for QuickBooks company ID: {qb_client.company_id}")
+print(f"  ✓ Bill created successfully for your QuickBooks company. Company ID: {qb_client.company_id}")
 print(f"    ID:     {saved.Id}")
 print(f"    Vendor: {vendor_ref.name}")
 print(f"    Date:   {saved.TxnDate}")
