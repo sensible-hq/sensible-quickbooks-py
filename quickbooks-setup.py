@@ -5,7 +5,7 @@ Run this from a regular terminal shell — NOT from inside an AI tool like Claud
 which does not provide an interactive session and will time out waiting for the OAuth
 callback. Open a terminal, navigate to the repo, and run:
 
-    cd ~/GitHub/sensible-quickbooks-py
+    cd sensible-quickbooks-py
     python quickbooks-setup.py
 
 Required env vars: QBO_CLIENT_ID, QBO_CLIENT_SECRET
